@@ -13,6 +13,23 @@
   white-space: pre-wrap;
 }
 
+/* ── Toast d'erreur ─────────────────────────────────────────────────────── */
+
+.eac-toast {
+  position: fixed;
+  z-index: 2147483647;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #b91c1c;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  max-width: 340px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.12);
+  pointer-events: none;
+  line-height: 1.4;
+}
+
 /* ── Status indicator (compose window) ──────────────────────────────────── */
 
 .eac-indicator {

@@ -11,6 +11,10 @@
   "background": {
     "service_worker": "background.js"
   },
+  "options_page": "options.html",
+  "host_permissions": [
+    "https://api.anthropic.com/*"
+  ],
   "action": {
     "default_popup": "popup.html"
   },

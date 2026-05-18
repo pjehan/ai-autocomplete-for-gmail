@@ -62,9 +62,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     chrome.storage.sync.set({ language: languageSel.value });
   });
 
-  // ── Bouton rechargement ─────────────────────────────────────────────────────
+  // ── Modèle actif ────────────────────────────────────────────────────────────
+
+  const { provider, claudeModel } = await chrome.storage.sync.get({
+    provider: 'browser',
+    claudeModel: 'claude-haiku-4-5-20251001',
+  });
+
+  const modelLabels = {
+    'claude-haiku-4-5-20251001': 'Claude Haiku 4.5',
+    'claude-sonnet-4-6':         'Claude Sonnet 4.6',
+    'claude-opus-4-7':           'Claude Opus 4.7',
+  };
+
+  const providerEl = document.createElement('div');
+  providerEl.style.cssText = 'font-size:12px;color:#9aa0a6;margin:-6px 0 10px;';
+  providerEl.textContent = provider === 'claude'
+    ? `Modèle : ${modelLabels[claudeModel] ?? claudeModel}`
+    : 'Modèle : Gemini Nano (navigateur)';
+  document.getElementById('status').insertAdjacentElement('afterend', providerEl);
+
+  // ── Boutons ──────────────────────────────────────────────────────────────────
 
   if (isGmail) {
     document.getElementById('reload').addEventListener('click', () => chrome.tabs.reload(tab.id));
   }
+  document.getElementById('open-options').addEventListener('click', () => {
+    chrome.runtime.openOptionsPage();
+  });
 });

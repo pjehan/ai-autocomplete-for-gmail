@@ -1,80 +1,100 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Email Autocomplete Settings</title>
+  <title>Paramètres du modèle — Email Autocomplete</title>
   <style>
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      line-height: 1.6;
-      color: #333;
-      max-width: 600px;
-      margin: 0 auto;
-      padding: 20px;
-    }
-    h1 {
-      color: #4285f4;
-      font-size: 24px;
-      font-weight: 500;
-    }
-    .form-group {
-      margin-bottom: 20px;
-    }
-    label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: 500;
-    }
-    input[type="number"], select {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 16px;
-      box-sizing: border-box;
-    }
-    button {
-      background-color: #4285f4;
-      color: white;
-      border: none;
-      padding: 10px 16px;
-      border-radius: 4px;
-      font-size: 16px;
-      cursor: pointer;
-      margin-top: 20px;
-    }
-    button:hover {
-      background-color: #3367d6;
-    }
-    .help-text {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 14px;
-      color: #666;
-      margin-top: 4px;
+      color: #333;
+      max-width: 520px;
+      margin: 40px auto;
+      padding: 0 20px;
     }
+    h1 { font-size: 20px; font-weight: 500; color: #202124; margin-bottom: 24px; }
+    h2 { font-size: 14px; font-weight: 500; color: #202124; margin: 24px 0 12px; }
+    .provider-list { display: flex; flex-direction: column; gap: 10px; }
+    .provider-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px;
+      border: 2px solid #dadce0;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color .15s;
+    }
+    .provider-card:has(input:checked) { border-color: #4285f4; }
+    .provider-card input[type="radio"] { margin-top: 2px; accent-color: #4285f4; }
+    .provider-card .label { font-weight: 500; }
+    .provider-card .desc  { font-size: 12px; color: #9aa0a6; margin-top: 2px; }
+    .claude-settings { margin-top: 8px; display: none; }
+    .claude-settings.visible { display: block; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; margin-bottom: 6px; font-weight: 500; }
+    input[type="password"], input[type="text"], select {
+      width: 100%;
+      padding: 9px 10px;
+      border: 1px solid #dadce0;
+      border-radius: 6px;
+      font-size: 14px;
+      box-sizing: border-box;
+      font-family: inherit;
+    }
+    input:focus, select:focus { outline: none; border-color: #4285f4; }
+    .hint { font-size: 12px; color: #9aa0a6; margin-top: 4px; }
+    .feedback {
+      margin-top: 10px;
+      font-size: 13px;
+      height: 18px;
+      color: #22c55e;
+    }
+    .feedback.error { color: #ef4444; }
   </style>
 </head>
 <body>
-  <h1>Email Autocomplete Settings</h1>
-  
-  <div class="form-group">
-    <label for="trigger-delay">Trigger Delay (ms)</label>
-    <input type="number" id="trigger-delay" min="0" step="100" required>
-    <div class="help-text">How long to wait after typing before generating suggestions (0-5000ms)</div>
+  <h1>Modèle de langage</h1>
+
+  <div class="provider-list">
+    <label class="provider-card">
+      <input type="radio" name="provider" value="browser">
+      <div>
+        <div class="label">Modèle intégré au navigateur</div>
+        <div class="desc">Gemini Nano — fonctionne hors-ligne, aucune clé requise</div>
+      </div>
+    </label>
+    <label class="provider-card">
+      <input type="radio" name="provider" value="claude">
+      <div>
+        <div class="label">Claude (Anthropic)</div>
+        <div class="desc">Appel à l'API Anthropic — nécessite une clé API</div>
+      </div>
+    </label>
   </div>
-  
-  <div class="form-group">
-    <label for="language">Language</label>
-    <select id="language">
-      <option value="auto">Automatic (browser language)</option>
-      <option value="en">English</option>
-      <option value="es">Spanish</option>
-      <option value="ja">Japanese</option>
-    </select>
+
+  <div class="claude-settings" id="claude-settings">
+    <h2>Configuration Claude</h2>
+
+    <div class="form-group">
+      <label for="claudeApiKey">Clé API Anthropic</label>
+      <input type="password" id="claudeApiKey" placeholder="sk-ant-…" autocomplete="off">
+      <div class="hint">Disponible sur <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a></div>
+    </div>
+
+    <div class="form-group">
+      <label for="claudeModel">Modèle</label>
+      <select id="claudeModel">
+        <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — rapide et économique</option>
+        <option value="claude-sonnet-4-6">Claude Sonnet 4.6 — équilibré</option>
+        <option value="claude-opus-4-7">Claude Opus 4.7 — le plus puissant</option>
+      </select>
+    </div>
   </div>
-  
-  <button id="save-btn">Save</button>
-  
+
+  <div class="feedback" id="feedback"></div>
+
   <script src="options.js"></script>
 </body>
 </html>

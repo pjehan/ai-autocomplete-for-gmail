@@ -6,15 +6,31 @@
   const DEFAULT_DELAY        = 600;
   const DEFAULT_LANGUAGE     = 'auto';
   const DEFAULT_TRIGGER_MODE = 'auto';
+  const DEFAULT_PROVIDER     = 'browser';
+  const DEFAULT_CLAUDE_MODEL = 'claude-haiku-4-5-20251001';
 
-  let settings = { triggerDelay: DEFAULT_DELAY, language: DEFAULT_LANGUAGE, triggerMode: DEFAULT_TRIGGER_MODE };
+  let settings = {
+    triggerDelay:  DEFAULT_DELAY,
+    language:      DEFAULT_LANGUAGE,
+    triggerMode:   DEFAULT_TRIGGER_MODE,
+    provider:      DEFAULT_PROVIDER,
+    claudeApiKey:  '',
+    claudeModel:   DEFAULT_CLAUDE_MODEL,
+  };
 
   // ── Settings ────────────────────────────────────────────────────────────────
 
   async function loadSettings() {
     return new Promise(resolve =>
       chrome.storage.sync.get(
-        { triggerDelay: DEFAULT_DELAY, language: DEFAULT_LANGUAGE, triggerMode: DEFAULT_TRIGGER_MODE },
+        {
+          triggerDelay:  DEFAULT_DELAY,
+          language:      DEFAULT_LANGUAGE,
+          triggerMode:   DEFAULT_TRIGGER_MODE,
+          provider:      DEFAULT_PROVIDER,
+          claudeApiKey:  '',
+          claudeModel:   DEFAULT_CLAUDE_MODEL,
+        },
         data => { settings = data; resolve(); }
       )
     );
@@ -23,6 +39,9 @@
   chrome.storage.onChanged.addListener(changes => {
     if (changes.triggerDelay)  settings.triggerDelay  = changes.triggerDelay.newValue;
     if (changes.triggerMode)   settings.triggerMode   = changes.triggerMode.newValue;
+    if (changes.provider)      settings.provider      = changes.provider.newValue;
+    if (changes.claudeApiKey)  settings.claudeApiKey  = changes.claudeApiKey.newValue;
+    if (changes.claudeModel)   settings.claudeModel   = changes.claudeModel.newValue;
     if (changes.language) {
       settings.language = changes.language.newValue;
       resetSession();
@@ -90,6 +109,77 @@ Do not explain your suggestions, just provide the text to insert.`;
       initialPrompts: [{ role: 'system', content: SYSTEM_PROMPT }],
       expectedOutputs: [{ type: 'text', languages: [effectiveLanguage(language)] }],
     });
+  }
+
+  // ── Streaming providers ──────────────────────────────────────────────────────
+
+  async function* streamBrowser(prompt, signal) {
+    const session = await getOrCreateSession(settings.language);
+    if (signal.aborted) return;
+    let accumulated = '';
+    for await (const chunk of session.promptStreaming(prompt, { signal })) {
+      if (signal.aborted) break;
+      accumulated += chunk;
+      const text = accumulated.trim();
+      if (text) yield text;
+    }
+  }
+
+  async function* streamClaude(prompt, signal) {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': settings.claudeApiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: settings.claudeModel,
+        max_tokens: 1024,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: prompt }],
+        stream: true,
+      }),
+      signal,
+    });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.error?.message ?? `Claude API ${response.status}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let accumulated = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done || signal.aborted) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') return;
+          try {
+            const event = JSON.parse(data);
+            if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
+              accumulated += event.delta.text;
+              const text = accumulated.trim();
+              if (text) yield text;
+            }
+          } catch { /* ligne SSE non-JSON, ignorée */ }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
   }
 
   // ── Badge (extension icon) ───────────────────────────────────────────────────
@@ -236,6 +326,12 @@ Do not explain your suggestions, just provide the text to insert.`;
     el.style.cssText = 'position:fixed;z-index:2147483647;pointer-events:none;display:none;';
     document.body.appendChild(el);
 
+    const toast = document.createElement('div');
+    toast.className = 'eac-toast';
+    toast.style.display = 'none';
+    document.body.appendChild(toast);
+    let toastTimer = null;
+
     return {
       setStatus(status) {
         setBadge(status);
@@ -263,7 +359,20 @@ Do not explain your suggestions, just provide the text to insert.`;
         el.style.top  = `${rect.bottom - 18}px`;
         el.style.display = '';
       },
-      destroy() { el.remove(); },
+      showError(message) {
+        clearTimeout(toastTimer);
+        toast.textContent = message;
+        const rect = textboxEl.getBoundingClientRect();
+        toast.style.left = `${rect.left}px`;
+        toast.style.top  = `${rect.bottom + 8}px`;
+        toast.style.display = '';
+        toastTimer = setTimeout(() => { toast.style.display = 'none'; }, 5000);
+      },
+      destroy() {
+        clearTimeout(toastTimer);
+        toast.remove();
+        el.remove();
+      },
     };
   }
 
@@ -281,11 +390,14 @@ Do not explain your suggestions, just provide the text to insert.`;
       abortController = ac;
       const { signal } = ac;
 
-      const availability = await getAvailability();
-      if (signal.aborted) return;
-
-      if (availability !== 'available') {
-        indicator.setStatus(availability === 'unavailable' ? 'unavailable' : 'loading');
+      if (settings.provider === 'browser') {
+        const availability = await getAvailability();
+        if (signal.aborted) return;
+        if (availability !== 'available') {
+          indicator.setStatus(availability === 'unavailable' ? 'unavailable' : 'loading');
+          return;
+        }
+      } else if (settings.provider === 'claude' && !settings.claudeApiKey) {
         return;
       }
 
@@ -295,9 +407,6 @@ Do not explain your suggestions, just provide the text to insert.`;
       indicator.setStatus('loading');
 
       try {
-        const session = await getOrCreateSession(settings.language);
-        if (signal.aborted) return;
-
         const userPrompt = buildPrompt(context);
         console.log(
           '%c[EAC] System prompt\n%c' + SYSTEM_PROMPT +
@@ -305,17 +414,15 @@ Do not explain your suggestions, just provide the text to insert.`;
           'color:#4285f4;font-weight:bold', 'color:inherit',
           'color:#4285f4;font-weight:bold', 'color:inherit'
         );
-        const stream = session.promptStreaming(userPrompt, { signal });
 
-        let accumulated = '';
-        for await (const chunk of stream) {
+        const stream = settings.provider === 'claude'
+          ? streamClaude(userPrompt, signal)
+          : streamBrowser(userPrompt, signal);
+
+        for await (const text of stream) {
           if (signal.aborted) break;
-          accumulated += chunk;
-          const text = accumulated.trim();
-          if (text) {
-            ghost.upsert(text);
-            indicator.setStatus('available');
-          }
+          ghost.upsert(text);
+          indicator.setStatus('available');
         }
       } catch (err) {
         if (err.name === 'AbortError') return;
@@ -325,8 +432,9 @@ Do not explain your suggestions, just provide the text to insert.`;
           resetSession();
           indicator.setStatus('unavailable');
         } else if (!signal.aborted) {
-          resetSession();
+          if (settings.provider === 'browser') resetSession();
           indicator.setStatus('available');
+          if (settings.provider === 'claude') indicator.showError(err.message);
         }
       }
     }

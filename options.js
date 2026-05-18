@@ -1,62 +1,52 @@
-/**
- * Options management for Chrome Extension Email Autocomplete
- * Handles reading, saving, and updating user preferences
- */
+document.addEventListener('DOMContentLoaded', async () => {
+  const claudeSettings = document.getElementById('claude-settings');
+  const apiKeyInput    = document.getElementById('claudeApiKey');
+  const modelSelect    = document.getElementById('claudeModel');
+  const feedback       = document.getElementById('feedback');
 
-// Default settings
-const DEFAULT_SETTINGS = {
-  triggerDelay: 600,
-  language: 'auto'
-};
-
-/**
- * Load settings from chrome.storage.sync
- * @returns {Promise<Object>} Settings object
- */
-async function loadSettings() {
-  const result = await chrome.storage.sync.get(DEFAULT_SETTINGS);
-  return {
-    triggerDelay: parseInt(result.triggerDelay) || DEFAULT_SETTINGS.triggerDelay,
-    language: result.language || DEFAULT_SETTINGS.language
+  const defaults = {
+    provider:     'browser',
+    claudeApiKey: '',
+    claudeModel:  'claude-haiku-4-5-20251001',
   };
-}
 
-/**
- * Save settings to chrome.storage.sync
- * @param {Object} settings - Settings to save
- */
-async function saveSettings(settings) {
-  await chrome.storage.sync.set(settings);
-  console.log('Settings saved:', settings);
-}
+  const settings = await chrome.storage.sync.get(defaults);
 
-/**
- * Update the options page UI with current settings
- */
-async function updateUI() {
-  const settings = await loadSettings();
-  document.getElementById('trigger-delay').value = settings.triggerDelay;
-  document.getElementById('language').value = settings.language;
-}
+  // Initialise l'UI
+  document.querySelector(`[name="provider"][value="${settings.provider}"]`).checked = true;
+  apiKeyInput.value  = settings.claudeApiKey;
+  modelSelect.value  = settings.claudeModel;
+  toggleClaudeSettings(settings.provider);
 
-/**
- * Handle form submission
- * @param {Event} e - Form submit event
- */
-async function handleSubmit(e) {
-  e.preventDefault();
-  
-  const triggerDelay = parseInt(document.getElementById('trigger-delay').value);
-  const language = document.getElementById('language').value;
-  
-  await saveSettings({ triggerDelay, language });
-  
-  // Show confirmation
-  alert('Settings saved successfully!');
-}
+  function toggleClaudeSettings(provider) {
+    claudeSettings.classList.toggle('visible', provider === 'claude');
+  }
 
-// Initialize the page
-document.addEventListener('DOMContentLoaded', () => {
-  updateUI();
-  document.getElementById('save-btn').addEventListener('click', handleSubmit);
+  function showFeedback(msg, isError = false) {
+    feedback.textContent = msg;
+    feedback.className = 'feedback' + (isError ? ' error' : '');
+    setTimeout(() => { feedback.textContent = ''; }, 2500);
+  }
+
+  // Provider
+  document.querySelectorAll('[name="provider"]').forEach(radio => {
+    radio.addEventListener('change', async e => {
+      const provider = e.target.value;
+      await chrome.storage.sync.set({ provider });
+      toggleClaudeSettings(provider);
+      showFeedback('Enregistré');
+    });
+  });
+
+  // Clé API (sauvegarde à la perte du focus)
+  apiKeyInput.addEventListener('blur', async () => {
+    await chrome.storage.sync.set({ claudeApiKey: apiKeyInput.value.trim() });
+    showFeedback('Clé API enregistrée');
+  });
+
+  // Modèle Claude
+  modelSelect.addEventListener('change', async () => {
+    await chrome.storage.sync.set({ claudeModel: modelSelect.value });
+    showFeedback('Enregistré');
+  });
 });
