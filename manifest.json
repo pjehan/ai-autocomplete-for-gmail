@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Chrome Extension Email Autocomplete",
+  "version": "1.0",
+  "description": "Autocomplete suggestions for email composition in Gmail",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "tabs"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://mail.google.com/*", "https://gmail.google.com/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["images/*"],
+      "matches": ["https://mail.google.com/*", "https://gmail.google.com/*"]
+    }
+  ]
+}

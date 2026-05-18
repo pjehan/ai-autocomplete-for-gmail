@@ -1,0 +1,29 @@
+/* ── Ghost text ──────────────────────────────────────────────────────────── */
+
+.eac-ghost {
+  pointer-events: none;
+  user-select: none;
+}
+
+.eac-ghost::after {
+  content: attr(data-ghost-content);
+  color: #9ca3af;
+  pointer-events: none;
+  user-select: none;
+  white-space: pre-wrap;
+}
+
+/* ── Status indicator (compose window) ──────────────────────────────────── */
+
+.eac-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid rgba(245, 158, 11, 0.25);
+  border-top-color: #f59e0b;
+  animation: eac-spin 0.75s linear infinite;
+}
+
+@keyframes eac-spin {
+  to { transform: rotate(360deg); }
+}

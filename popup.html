@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Email Autocomplete</title>
+  <style>
+    body {
+      width: 260px;
+      padding: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 13px;
+      color: #333;
+    }
+    h3 { margin: 0 0 8px; font-size: 14px; color: #202124; }
+    .status { font-weight: 500; margin: 4px 0 12px; }
+    .status.active   { color: #22c55e; }
+    .status.inactive { color: #9aa0a6; }
+    .status.loading  { color: #f59e0b; }
+    hr { border: none; border-top: 1px solid #e8eaed; margin: 0 0 12px; }
+    .setting-group { margin-bottom: 10px; }
+    .setting-group > label {
+      display: block;
+      margin-bottom: 4px;
+      font-weight: 500;
+      color: #202124;
+    }
+    .radio-group { display: flex; flex-direction: column; gap: 4px; }
+    .radio-group label {
+      font-weight: normal;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+    .hint { color: #9aa0a6; font-size: 12px; }
+    input[type="number"], select {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      font-size: 13px;
+      box-sizing: border-box;
+    }
+    input:disabled { opacity: 0.4; }
+    button {
+      display: block;
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      background: #f1f3f4;
+      color: #202124;
+      font-size: 13px;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+    button:hover { background: #e8eaed; }
+  </style>
+</head>
+<body>
+  <h3>Email Autocomplete</h3>
+  <div class="status" id="status">Chargement…</div>
+  <hr>
+
+  <div class="setting-group">
+    <label>Déclenchement</label>
+    <div class="radio-group">
+      <label>
+        <input type="radio" name="triggerMode" value="auto">
+        Automatique
+      </label>
+      <label>
+        <input type="radio" name="triggerMode" value="manual">
+        Manuel <span class="hint">(Ctrl+Espace)</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="setting-group">
+    <label for="triggerDelay">Délai automatique (ms)</label>
+    <input type="number" id="triggerDelay" min="0" step="100">
+  </div>
+
+  <div class="setting-group">
+    <label for="language">Langue de sortie</label>
+    <select id="language">
+      <option value="auto">Automatique</option>
+      <option value="en">English</option>
+      <option value="es">Spanish</option>
+      <option value="ja">Japanese</option>
+    </select>
+  </div>
+
+  <button id="reload">Recharger Gmail</button>
+
+  <script src="popup.js"></script>
+</body>
+</html>
