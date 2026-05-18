@@ -1,4 +1,4 @@
-# Chrome Extension Email Autocomplete
+# AI autocomplete for Gmail
 
 Extension Chrome qui ajoute de l'autocomplétion intelligente dans la fenêtre de rédaction de Gmail, en s'appuyant sur un modèle de langage au choix :
 

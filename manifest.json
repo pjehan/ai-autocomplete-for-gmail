@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Chrome Extension Email Autocomplete",
+  "name": "AI autocomplete for Gmail",
   "version": "1.0",
   "description": "Autocomplete suggestions for email composition in Gmail",
   "permissions": [
