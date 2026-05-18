@@ -1,39 +1,41 @@
 # Chrome Extension Email Autocomplete
 
-Extension Chrome qui ajoute de l'autocomplétion intelligente dans la fenêtre de rédaction de Gmail, en s'appuyant sur le modèle de langage **intégré au navigateur** (`LanguageModel` API) — aucun appel à un service externe.
+Extension Chrome qui ajoute de l'autocomplétion intelligente dans la fenêtre de rédaction de Gmail, en s'appuyant sur un modèle de langage au choix :
+
+- **Gemini Nano** — modèle intégré au navigateur, aucune clé API requise
+- **Claude (Anthropic)** — modèle externe via l'API Anthropic
 
 ## Fonctionnement
 
-Pendant la rédaction d'un email, l'extension interroge le modèle local du navigateur avec :
+Pendant la rédaction d'un email, l'extension envoie au modèle :
 
+- l'**identité Gmail** de l'utilisateur,
 - le **sujet** de l'email,
-- les **messages cités** (réponses/transferts),
+- le **fil de conversation** (messages précédents cités),
 - le **brouillon en cours** avec la position exacte du curseur.
 
 La suggestion apparaît en **texte fantôme** (gris clair) directement dans la zone de saisie :
 
 - **Tab** → accepter la suggestion
 - **Échap** → refuser / annuler
-- Toute frappe → annule la suggestion en cours et replanifie une nouvelle génération après le délai configuré
+- Toute frappe → annule la suggestion et replanifie une nouvelle génération
 
-Un indicateur visuel (petit rond coloré) dans la fenêtre de rédaction ainsi que le badge de l'icône d'extension reflètent l'état du modèle :
-
-| Couleur | Signification |
-|---------|---------------|
-| Vert | Modèle disponible |
-| Jaune (tournant) | Génération en cours |
-| Rouge | Modèle indisponible |
+Un indicateur visuel (petit rond animé) apparaît à côté du curseur pendant la génération. Le badge de l'icône de l'extension reflète l'état du modèle.
 
 ## Prérequis
 
-L'extension requiert **Chrome avec l'API `LanguageModel` activée** (modèle Gemini Nano embarqué).
+### Gemini Nano (modèle intégré)
 
-Pour vérifier et activer cette fonctionnalité :
+Requiert **Chrome 127+** avec le Prompt API activé :
 
-1. Ouvrir `chrome://flags/#optimization-guide-on-device-model` → **Enabled BypassPerfRequirement**
-2. Ouvrir `chrome://flags/#prompt-api-for-gemini-nano` → **Enabled**
+1. `chrome://flags/#optimization-guide-on-device-model` → **Enabled BypassPerfRequirement**
+2. `chrome://flags/#prompt-api-for-gemini-nano` → **Enabled**
 3. Redémarrer Chrome
-4. Attendre le téléchargement du modèle (peut prendre quelques minutes) — vérifiable via `chrome://components` → *Optimization Guide On Device Model*
+4. Attendre le téléchargement du modèle — vérifiable via `chrome://components` → *Optimization Guide On Device Model*
+
+### Claude (Anthropic)
+
+Une clé API Anthropic est nécessaire. Elle se configure dans **Paramètres du modèle** (page d'options de l'extension).
 
 ## Installation
 
@@ -48,18 +50,30 @@ Aucune étape de build n'est nécessaire — l'extension est en JavaScript vanil
 ## Utilisation
 
 1. Ouvrir Gmail dans Chrome
-2. Commencer à rédiger un email
-3. Après le délai configuré (défaut : 600 ms), une suggestion apparaît en gris dans la zone de saisie
-4. Appuyer sur **Tab** pour insérer la suggestion, ou continuer à taper pour l'ignorer
+2. Commencer à rédiger un email ou répondre à une conversation
+3. En mode **automatique** : après le délai configuré (défaut : 600 ms), une suggestion apparaît en gris dans la zone de saisie
+4. En mode **manuel** : appuyer sur **Ctrl+Espace** pour déclencher une suggestion
+5. Appuyer sur **Tab** pour insérer la suggestion, ou continuer à taper pour l'ignorer
 
 ## Configuration
 
-Cliquer sur l'icône de l'extension → **Settings** pour accéder aux réglages :
+Cliquer sur l'icône de l'extension pour accéder aux réglages rapides :
 
-- **Trigger Delay** : délai en millisecondes après la dernière frappe avant de déclencher une suggestion (défaut : 600 ms)
-- **Language** : langue cible pour les suggestions générées (défaut : automatique)
+| Paramètre | Description | Défaut |
+|-----------|-------------|--------|
+| Déclenchement | Automatique ou manuel (Ctrl+Espace) | Automatique |
+| Délai automatique | Millisecondes après la dernière frappe | 600 ms |
+| Langue de sortie | Langue des suggestions générées | Automatique |
 
-Les paramètres sont synchronisés via `chrome.storage.sync` et s'appliquent immédiatement sans recharger la page.
+Cliquer sur **Paramètres du modèle →** pour configurer le fournisseur LLM :
+
+| Paramètre | Description |
+|-----------|-------------|
+| Fournisseur | Gemini Nano (navigateur) ou Claude (Anthropic) |
+| Clé API Claude | Clé API Anthropic (si fournisseur Claude) |
+| Modèle Claude | Haiku 4.5 / Sonnet 4.6 / Opus 4.7 |
+
+Les paramètres sont synchronisés via `chrome.storage.sync` et s'appliquent immédiatement.
 
 ## Structure des fichiers
 
@@ -70,7 +84,7 @@ chrome-extension-email-autocomplete/
 ├── background.js      # Service worker — gestion du badge de l'icône
 ├── popup.html         # Interface du popup (clic sur l'icône)
 ├── popup.js           # Script du popup
-├── options.html       # Page de paramètres
+├── options.html       # Page de paramètres du modèle LLM
 ├── options.js         # Script de la page de paramètres
 ├── styles.css         # Styles du texte fantôme et de l'indicateur
 └── README.md
@@ -78,25 +92,9 @@ chrome-extension-email-autocomplete/
 
 ## Compatibilité
 
-- Chrome avec le **Prompt API / LanguageModel** disponible (voir Prérequis)
+- Chrome 127+ (Gemini Nano) ou tout Chrome récent (Claude)
 - Interface web Gmail (`mail.google.com`)
 - Ne nécessite pas Gmail Labs
-
-## Problèmes connus
-
-- Si le modèle n'est pas encore téléchargé (`LanguageModel.availability()` retourne `'downloading'`), l'indicateur reste en état de chargement jusqu'à disponibilité.
-- Certains thèmes Gmail peuvent nécessiter un rechargement de la page après installation de l'extension.
-
-## Bugs connus dans le code
-
-Quelques anomalies identifiées lors de l'analyse :
-
-- **`options.js:52`** — faute de syntaxe : `{ triggerDelay, language]` (crochet fermant au lieu d'accolade)
-- **`options.js`** — délai par défaut `500` ms incohérent avec `content.js` qui utilise `600` ms
-- **`options.html`** — l'option `auto` est absente du sélecteur de langue alors que c'est la valeur par défaut dans `content.js`
-- **`popup.js:26`** — précédence des opérateurs : `tab && tab.url.includes(…) || tab.url.includes(…)` ne protège pas correctement le second `includes` d'un `tab` nul
-- **`popup.html:61`** — balise `<div>` non fermée dans le bloc de statut
-- **`manifest.json`** — la permission `tabs` est manquante alors que `popup.js` appelle `chrome.tabs.query`
 
 ## Licence
 
