@@ -197,10 +197,12 @@ Do not explain your suggestions, just provide the text to insert.`;
     return match ? { name: match[1].trim(), email: match[2].trim() } : null;
   }
 
+  const EXCLUDE_SELECTORS = `.${GHOST_CLASS}, .gmail_quote, .gmail_signature`;
+
   function getTextAroundCursor(textboxEl) {
     const fullTextFallback = () => {
       const clone = textboxEl.cloneNode(true);
-      clone.querySelectorAll(`.${GHOST_CLASS}`).forEach(n => n.remove());
+      clone.querySelectorAll(EXCLUDE_SELECTORS).forEach(n => n.remove());
       return { textBefore: clone.innerText.trimEnd(), textAfter: '' };
     };
 
@@ -215,13 +217,13 @@ Do not explain your suggestions, just provide the text to insert.`;
       beforeRange.selectNodeContents(textboxEl);
       beforeRange.setEnd(range.startContainer, range.startOffset);
       const beforeFrag = beforeRange.cloneContents();
-      beforeFrag.querySelectorAll(`.${GHOST_CLASS}`).forEach(n => n.remove());
+      beforeFrag.querySelectorAll(EXCLUDE_SELECTORS).forEach(n => n.remove());
 
       const afterRange = document.createRange();
       afterRange.selectNodeContents(textboxEl);
       afterRange.setStart(range.endContainer, range.endOffset);
       const afterFrag = afterRange.cloneContents();
-      afterFrag.querySelectorAll(`.${GHOST_CLASS}`).forEach(n => n.remove());
+      afterFrag.querySelectorAll(EXCLUDE_SELECTORS).forEach(n => n.remove());
 
       return {
         textBefore: beforeFrag.textContent.trimEnd(),
@@ -233,11 +235,23 @@ Do not explain your suggestions, just provide the text to insert.`;
   }
 
   function extractContext(textboxEl) {
-    const subject =
-      document.querySelector('input[name="subjectbox"]')?.value?.trim() ?? '';
+    const form = textboxEl.closest('table[role="presentation"]').querySelector('form');
 
-    const form = textboxEl.closest('form') ?? textboxEl.parentElement;
-    const quoted = form?.querySelector('.gmail_quote')?.innerText?.trim() ?? '';
+    const subject =
+      document.querySelector('input[name="subjectbox"]')?.value?.trim() ||
+      form?.querySelector('input[name="subject"]')?.value?.trim() || '';
+
+    // Gmail stocke le fil de discussion dans un champ caché input[name="uet"]
+    let quoted = '';
+    const uetInput = form?.querySelector('input[name="uet"]');
+    if (uetInput?.value) {
+      const doc = new DOMParser().parseFromString(uetInput.value, 'text/html');
+      doc.querySelectorAll('img, style, script').forEach(n => n.remove());
+      quoted = doc.body.innerText.trim();
+    }
+    if (!quoted) {
+      quoted = textboxEl.querySelector('.gmail_quote')?.innerText?.trim() ?? '';
+    }
 
     const { textBefore, textAfter } = getTextAroundCursor(textboxEl);
     const user = getGmailUser();
@@ -245,10 +259,12 @@ Do not explain your suggestions, just provide the text to insert.`;
   }
 
   function buildPrompt({ subject, quoted, textBefore, textAfter, user }) {
+    // Limite adaptée à la fenêtre de contexte : grande pour Claude, raisonnable pour Gemini Nano
+    const maxQuoted = settings.provider === 'claude' ? 8000 : 2000;
     const parts = [];
-    if (user) parts.push(`You are writing on behalf of: ${user.name} <${user.email}>`);
+    if (user)    parts.push(`You are writing on behalf of: ${user.name} <${user.email}>`);
     if (subject) parts.push(`Subject: ${subject}`);
-    if (quoted)  parts.push(`Previous messages:\n${quoted.slice(0, 1500)}`);
+    if (quoted)  parts.push(`Previous messages:\n${quoted.slice(0, maxQuoted)}`);
     const draft = textAfter ? `${textBefore}[CURSOR]${textAfter}` : `${textBefore}[CURSOR]`;
     parts.push(`Current draft:\n${draft}`);
     return parts.join('\n\n');
