@@ -331,12 +331,20 @@ Do not explain your suggestions, just provide the text to insert.`;
       if (!ghostSpan?.isConnected) return;
 
       const text = ghostSpan.dataset.ghostContent ?? '';
-      const textNode = document.createTextNode(text);
-      ghostSpan.replaceWith(textNode);
+      // Le champ Gmail n'est pas en white-space: pre-wrap : un "\n" dans un
+      // nœud texte serait réduit à un espace, on insère donc des <br>.
+      const fragment = document.createDocumentFragment();
+      text.split('\n').forEach((line, i) => {
+        if (i > 0) fragment.appendChild(document.createElement('br'));
+        if (line) fragment.appendChild(document.createTextNode(line));
+      });
+      const lastNode = fragment.lastChild;
+      ghostSpan.replaceWith(fragment);
       ghostSpan = null;
+      if (!lastNode) return;
 
       const range = document.createRange();
-      range.setStartAfter(textNode);
+      range.setStartAfter(lastNode);
       range.collapse(true);
       const sel = window.getSelection();
       sel.removeAllRanges();
