@@ -71,7 +71,7 @@ Cliquer sur **Paramètres du modèle →** pour configurer le fournisseur LLM :
 |-----------|-------------|
 | Fournisseur | Gemini Nano (navigateur) ou Claude (Anthropic) |
 | Clé API Claude | Clé API Anthropic (si fournisseur Claude) |
-| Modèle Claude | Haiku 4.5 / Sonnet 4.6 / Opus 4.7 |
+| Modèle Claude | Haiku 4.5 / Sonnet 5.5 / Opus 5.5 |
 
 Les paramètres sont synchronisés via `chrome.storage.sync` et s'appliquent immédiatement.
 

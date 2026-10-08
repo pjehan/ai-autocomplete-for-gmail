@@ -125,6 +125,19 @@ Do not explain your suggestions, just provide the text to insert.`;
     }
   }
 
+  // Les modèles 5.5 réfléchissent par défaut : pour une autocomplétion, on minimise
+  // la latence (effort bas ; Sonnet 5.5 accepte en plus de couper la réflexion,
+  // Opus 5.5 ne le permet pas). Haiku 4.5 ne supporte pas `effort`.
+  function modelParams(model) {
+    if (model === 'claude-sonnet-5-5') {
+      return { thinking: { type: 'between_tools' }, output_config: { effort: 'low' } };
+    }
+    if (model === 'claude-opus-5-5') {
+      return { output_config: { effort: 'low' } };
+    }
+    return {};
+  }
+
   async function* streamClaude(prompt, signal) {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -140,6 +153,7 @@ Do not explain your suggestions, just provide the text to insert.`;
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: prompt }],
         stream: true,
+        ...modelParams(settings.claudeModel),
       }),
       signal,
     });

@@ -12,6 +12,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const settings = await chrome.storage.sync.get(defaults);
 
+  // Migre les anciens identifiants de modèle enregistrés vers les modèles actuels
+  const legacyModels = {
+    'claude-sonnet-4-6': 'claude-sonnet-5-5',
+    'claude-opus-4-7':   'claude-opus-5-5',
+  };
+  if (legacyModels[settings.claudeModel]) {
+    settings.claudeModel = legacyModels[settings.claudeModel];
+    await chrome.storage.sync.set({ claudeModel: settings.claudeModel });
+  }
+
   // Initialise l'UI
   document.querySelector(`[name="provider"][value="${settings.provider}"]`).checked = true;
   apiKeyInput.value  = settings.claudeApiKey;
